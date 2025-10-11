@@ -1,0 +1,286 @@
+// schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["process_map"]
+}
+
+// =====================
+// USER MANAGEMENT
+// =====================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String
+  role          Role      @default(VIEWER)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  ownedComponents Component[] @relation("ComponentOwner")
+  todos         Todo[]
+  issues        Issue[]
+  ideas         Idea[]
+  comments      Comment[]
+  activityLogs  ActivityLog[]
+
+  @@map("users")
+  @@schema("process_map")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  VIEWER
+
+  @@schema("process_map")
+}
+
+// =====================
+// PROCESS MAP STRUCTURE
+// =====================
+
+model Section {
+  id          String      @id @default(cuid())
+  name        String      // "Lead Generation", "Sales & Estimation", etc.
+  order       Int         @unique
+  color       String?     // For visual distinction
+  description String?
+  components  Component[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("sections")
+  @@schema("process_map")
+}
+
+model Component {
+  id            String        @id @default(cuid())
+  title         String
+  sectionId     String
+  section       Section       @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  // Ownership & Responsibility
+  ownerId       String
+  owner         User          @relation("ComponentOwner", fields: [ownerId], references: [id])
+  tool          String?       // "Twenty CRM", "n8n", etc.
+
+  // Status
+  healthStatus  HealthStatus  @default(GRAY)
+  currentState  String?       @db.Text
+  targetState   String?       @db.Text
+
+  // Positioning (for visual layout)
+  positionX     Float?
+  positionY     Float?
+
+  // Relationships
+  metrics       Metric[]
+  todos         Todo[]
+  issues        Issue[]
+  ideas         Idea[]
+  comments      Comment[]
+
+  // Connections to other components
+  connectionsFrom Connection[] @relation("FromComponent")
+  connectionsTo   Connection[] @relation("ToComponent")
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("components")
+  @@schema("process_map")
+}
+
+enum HealthStatus {
+  GREEN
+  YELLOW
+  RED
+  GRAY
+  BLUE
+
+  @@schema("process_map")
+}
+
+model Connection {
+  id              String    @id @default(cuid())
+  fromComponentId String
+  fromComponent   Component @relation("FromComponent", fields: [fromComponentId], references: [id], onDelete: Cascade)
+  toComponentId   String
+  toComponent     Component @relation("ToComponent", fields: [toComponentId], references: [id], onDelete: Cascade)
+
+  label           String?   // What data/trigger passes through
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([fromComponentId, toComponentId])
+  @@map("connections")
+  @@schema("process_map")
+}
+
+model Metric {
+  id          String    @id @default(cuid())
+  componentId String
+  component   Component @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  name        String    // "Monthly leads", "Conversion rate"
+  target      String?   // "50", "85%"
+  current     String?   // "45", "82%"
+  unit        String?   // "leads", "%", "$"
+
+  order       Int       // Display order
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("metrics")
+  @@schema("process_map")
+}
+
+// =====================
+// TODOS, ISSUES, IDEAS
+// =====================
+
+model Todo {
+  id          String    @id @default(cuid())
+  componentId String
+  component   Component @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?   @db.Text
+  completed   Boolean   @default(false)
+
+  assigneeId  String?
+  assignee    User?     @relation(fields: [assigneeId], references: [id])
+
+  dueDate     DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  @@map("todos")
+  @@schema("process_map")
+}
+
+model Issue {
+  id          String       @id @default(cuid())
+  componentId String
+  component   Component    @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?      @db.Text
+  priority    Priority     @default(P2)
+  status      IssueStatus  @default(OPEN)
+
+  reportedById String
+  reportedBy   User        @relation(fields: [reportedById], references: [id])
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  resolvedAt  DateTime?
+
+  @@map("issues")
+  @@schema("process_map")
+}
+
+enum Priority {
+  P1  // Critical
+  P2  // High
+  P3  // Medium
+  P4  // Low
+
+  @@schema("process_map")
+}
+
+enum IssueStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  WONT_FIX
+
+  @@schema("process_map")
+}
+
+model Idea {
+  id          String    @id @default(cuid())
+  componentId String
+  component   Component @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?   @db.Text
+  votes       Int       @default(0)
+
+  submittedById String
+  submittedBy   User    @relation(fields: [submittedById], references: [id])
+
+  implemented Boolean   @default(false)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("ideas")
+  @@schema("process_map")
+}
+
+// =====================
+// COLLABORATION
+// =====================
+
+model Comment {
+  id          String    @id @default(cuid())
+  componentId String
+  component   Component @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  content     String    @db.Text
+
+  authorId    String
+  author      User      @relation(fields: [authorId], references: [id])
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("comments")
+  @@schema("process_map")
+}
+
+model ActivityLog {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+
+  action      String    // "created", "updated", "deleted", "status_changed"
+  entityType  String    // "component", "todo", "issue", "idea"
+  entityId    String
+
+  changes     Json?     // Store what changed
+
+  createdAt   DateTime  @default(now())
+
+  @@map("activity_logs")
+  @@schema("process_map")
+}
+
+// =====================
+// SNAPSHOTS
+// =====================
+
+model Snapshot {
+  id          String    @id @default(cuid())
+  name        String    // "Week of Oct 7, 2025"
+  data        Json      // Full serialized state of the process map
+
+  createdById String
+  createdAt   DateTime  @default(now())
+
+  @@map("snapshots")
+  @@schema("process_map")
+}
