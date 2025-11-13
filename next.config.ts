@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   eslint: {
@@ -11,6 +12,8 @@ const nextConfig: NextConfig = {
     // your project has type errors.
     ignoreBuildErrors: true,
   },
+  output: "standalone",
+  outputFileTracingRoot: path.join(__dirname, "./"),
 };
 
 export default nextConfig;

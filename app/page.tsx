@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 import AppLayout from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, AlertTriangle, AlertCircle, Lightbulb } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { formatDistanceToNow } from "date-fns";
 
 async function getDashboardData() {
@@ -125,25 +124,26 @@ export default async function Dashboard() {
                 </div>
               </div>
               <div className="flex-1">
-                <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
-                    <Pie
-                      data={chartData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
+                {/* Health Distribution Chart - Visual Representation */}
+                <div className="flex flex-col gap-2 p-4">
+                  <div className="text-sm font-medium mb-2">Health Distribution</div>
+                  {chartData.map((item, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <div className="w-24 text-xs text-gray-600">{item.name}</div>
+                      <div className="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden">
+                        <div
+                          className="h-full rounded-full flex items-center justify-center text-xs text-white font-medium"
+                          style={{
+                            backgroundColor: item.color,
+                            width: `${(item.value / (data.healthCounts.GREEN + data.healthCounts.YELLOW + data.healthCounts.RED + data.healthCounts.GRAY)) * 100}%`,
+                          }}
+                        >
+                          {item.value}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </CardContent>
