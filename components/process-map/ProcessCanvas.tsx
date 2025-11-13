@@ -4,7 +4,10 @@ import { useState } from "react";
 import { Section, Component, Metric, User, Todo, Issue, Idea, Comment } from "@prisma/client";
 import ComponentCard from "./ComponentCard";
 import ComponentDetail from "./ComponentDetail";
+import ProcessMapGraph from "./ProcessMapGraph";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { LayoutGrid, Network } from "lucide-react";
 
 type ComponentWithRelations = Component & {
   owner: User;
@@ -30,10 +33,35 @@ interface ProcessCanvasProps {
 
 export default function ProcessCanvas({ sections }: ProcessCanvasProps) {
   const [selectedComponent, setSelectedComponent] = useState<ComponentWithRelations | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "graph">("list");
 
   return (
     <>
-      <div className="space-y-6">
+      {/* View Mode Toggle */}
+      <div className="flex justify-end mb-4 gap-2">
+        <Button
+          variant={viewMode === "list" ? "default" : "outline"}
+          onClick={() => setViewMode("list")}
+          className="gap-2"
+        >
+          <LayoutGrid className="h-4 w-4" />
+          List View
+        </Button>
+        <Button
+          variant={viewMode === "graph" ? "default" : "outline"}
+          onClick={() => setViewMode("graph")}
+          className="gap-2"
+        >
+          <Network className="h-4 w-4" />
+          Graph View
+        </Button>
+      </div>
+
+      {/* Render based on view mode */}
+      {viewMode === "graph" ? (
+        <ProcessMapGraph sections={sections} />
+      ) : (
+        <div className="space-y-6">
         {sections.map((section) => (
           <Card key={section.id}>
             <CardHeader>
@@ -65,9 +93,10 @@ export default function ProcessCanvas({ sections }: ProcessCanvasProps) {
             <p className="text-gray-500">No sections configured yet</p>
           </div>
         )}
-      </div>
+        </div>
+      )}
 
-      {selectedComponent && (
+      {viewMode === "list" && selectedComponent && (
         <ComponentDetail
           component={selectedComponent}
           open={!!selectedComponent}
